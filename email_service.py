@@ -18,6 +18,11 @@ import aioimaplib
 
 logger = logging.getLogger(__name__)
 
+
+class IMAPLoginError(Exception):
+    """Raised when IMAP authentication fails."""
+
+
 ALLOWED_EXTENSIONS = frozenset(
     {".jpg", ".jpeg", ".png", ".pdf", ".xlsx", ".xls"}
 )
@@ -64,8 +69,16 @@ class EmailPoller:
 
         try:
             await imap.wait_hello_from_server()
-            await imap.login(self.username, self.password)
-            logger.debug("IMAP login successful for %s", self.username)
+
+            login_status, login_data = await imap.login(
+                self.username, self.password
+            )
+            if login_status != "OK":
+                raise IMAPLoginError(
+                    f"IMAP login failed for {self.username}: "
+                    f"{login_data!r}"
+                )
+            logger.info("IMAP login successful for %s", self.username)
 
             await imap.select("INBOX")
 

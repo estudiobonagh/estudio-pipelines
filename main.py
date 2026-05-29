@@ -291,7 +291,7 @@ async def twilio_webhook(request: Request):
 async def _email_poll_loop(settings, session_factory) -> None:
     """Background task: poll IMAP inbox for new email attachments."""
 
-    from email_service import EmailPoller
+    from email_service import EmailPoller, IMAPLoginError
 
     poller = EmailPoller(
         host=settings.EMAIL_IMAP_HOST,
@@ -324,6 +324,14 @@ async def _email_poll_loop(settings, session_factory) -> None:
         except asyncio.CancelledError:
             logger.info("Email poller cancelled")
             break
+        except IMAPLoginError:
+            logger.error(
+                "Email poller: login failed — check EMAIL_IMAP_USERNAME/PASSWORD. "
+                "Retrying in %ds",
+                settings.EMAIL_POLL_INTERVAL_S * 10,
+            )
+            await asyncio.sleep(settings.EMAIL_POLL_INTERVAL_S * 10)
+            continue
         except Exception:
             logger.exception("Email poller iteration failed")
 
