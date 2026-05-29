@@ -225,6 +225,7 @@ __marimo__/
 *.db
 data/
 venv/
+docs/
 
 # Credentials — nunca commitear
 credentials.json
