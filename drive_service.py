@@ -56,11 +56,19 @@ class DrivePermissionError(DriveError):
     """Insufficient permissions for the operation."""
 
 
-def build_credentials(credentials_path: str) -> Credentials:
-    """Load service account credentials from a JSON key file."""
+def build_credentials(source: str | dict) -> Credentials:
+    """Load service account credentials from a JSON key file or dict.
+
+    Accepts either a file path to a service account JSON, or the parsed
+    JSON dict directly (for Railway/cloud where files aren't practical).
+    """
+    scopes = ["https://www.googleapis.com/auth/drive.file"]
+    if isinstance(source, dict):
+        return service_account.Credentials.from_service_account_info(
+            source, scopes=scopes
+        )
     return service_account.Credentials.from_service_account_file(
-        credentials_path,
-        scopes=["https://www.googleapis.com/auth/drive.file"],
+        source, scopes=scopes
     )
 
 

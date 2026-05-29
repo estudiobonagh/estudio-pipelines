@@ -479,7 +479,14 @@ def _get_drive_service(settings: Settings):
     """Get or create a cached Google Drive service instance."""
     global _drive_service_cache, _drive_settings_hash
 
-    current_hash = hash(settings.GOOGLE_DRIVE_CREDENTIALS)
+    creds = settings.GOOGLE_DRIVE_CREDENTIALS
+    if isinstance(creds, dict):
+        import json
+
+        current_hash = hash(json.dumps(creds, sort_keys=True))
+    else:
+        current_hash = hash(creds)
+
     if _drive_service_cache is not None and _drive_settings_hash == current_hash:
         return _drive_service_cache
 

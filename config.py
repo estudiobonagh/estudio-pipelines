@@ -29,7 +29,14 @@ class Settings:
         self.XAI_MODEL: str = os.getenv("XAI_MODEL", "grok-2-vision-1212")
 
         # Google Drive
-        self.GOOGLE_DRIVE_CREDENTIALS: str = self._require("GOOGLE_DRIVE_CREDENTIALS")
+        creds_json = os.getenv("GOOGLE_DRIVE_CREDENTIALS_JSON", "")
+        if creds_json:
+            import json
+
+            self.GOOGLE_DRIVE_CREDENTIALS: str | dict = json.loads(creds_json)
+        else:
+            self.GOOGLE_DRIVE_CREDENTIALS = self._require("GOOGLE_DRIVE_CREDENTIALS")
+            self._validate_credentials_file()
         self.GOOGLE_DRIVE_CLIENTS_ID: str = self._require("GOOGLE_DRIVE_CLIENTS_ID")
         self.GOOGLE_DRIVE_INBOX_ID: str = os.getenv(
             "GOOGLE_DRIVE_INBOX_ID", ""
@@ -68,8 +75,11 @@ class Settings:
         return value
 
     def _validate_credentials_file(self) -> None:
-        """Ensure the Google Drive credentials file exists."""
-        creds_path = Path(self.GOOGLE_DRIVE_CREDENTIALS)
+        """Ensure the Google Drive credentials file exists (file mode only)."""
+        creds = self.GOOGLE_DRIVE_CREDENTIALS
+        if not isinstance(creds, str):
+            return  # JSON mode — no file to validate
+        creds_path = Path(creds)
         if not creds_path.is_file():
             print(
                 f"Google Drive credentials file not found: {creds_path.resolve()}",
