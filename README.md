@@ -1,7 +1,7 @@
 # Estudio Pipelines — Demo de Recepción Documental
 
 Pipeline automatizado de recepción, clasificación y archivo de documentos
-contables. Construido para el estudio de Facundo Bona, San Luis, Argentina.
+contables.
 
 ## ¿Qué hace?
 
@@ -12,8 +12,6 @@ la estructura de carpetas correcta dentro de Google Drive.
 ```
 Cliente manda foto/PDF → Sistema clasifica → Drive: Clientes/María/2026/05 - Mayo/Facturas/
 ```
-
-El contador deja de descargar, renombrar y mover archivos a mano.
 
 ## Canales de entrada
 
@@ -164,4 +162,4 @@ Clientes/
 
 ## Licencia
 
-Privado — Estudio Bona & Asoc.
+Privado —  Estudio Bona & Asoc.

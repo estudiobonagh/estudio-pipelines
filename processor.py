@@ -481,8 +481,6 @@ def _get_drive_service(settings: Settings):
 
     creds = settings.GOOGLE_DRIVE_CREDENTIALS
     if isinstance(creds, dict):
-        import json
-
         current_hash = hash(json.dumps(creds, sort_keys=True))
     else:
         current_hash = hash(creds)
