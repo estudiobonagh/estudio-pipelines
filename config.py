@@ -30,9 +30,9 @@ class Settings:
 
         # Google Drive
         self.GOOGLE_DRIVE_CREDENTIALS: str = self._require("GOOGLE_DRIVE_CREDENTIALS")
-        self.GOOGLE_DRIVE_FOLDER_ID: str = self._require("GOOGLE_DRIVE_FOLDER_ID")
-        self.GOOGLE_DRIVE_INBOX_FOLDER_ID: str = os.getenv(
-            "GOOGLE_DRIVE_INBOX_FOLDER_ID", ""
+        self.GOOGLE_DRIVE_CLIENTS_ID: str = self._require("GOOGLE_DRIVE_CLIENTS_ID")
+        self.GOOGLE_DRIVE_INBOX_ID: str = os.getenv(
+            "GOOGLE_DRIVE_INBOX_ID", ""
         )
 
         # Database

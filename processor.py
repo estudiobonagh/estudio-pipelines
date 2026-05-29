@@ -256,7 +256,7 @@ async def process_document(
             try:
                 rev_path = await build_drive_path(
                     drive_service=_get_drive_service(settings),
-                    root_folder_id=settings.GOOGLE_DRIVE_FOLDER_ID,
+                    root_folder_id=settings.GOOGLE_DRIVE_CLIENTS_ID,
                     client_name="_REVISION",
                     period=classification.periodo or _current_period(),
                     document_type=classification.tipo_documento or "Otro",
@@ -305,7 +305,7 @@ async def process_document(
         try:
             drive_path = await build_drive_path(
                 drive_service=_get_drive_service(settings),
-                root_folder_id=settings.GOOGLE_DRIVE_FOLDER_ID,
+                root_folder_id=settings.GOOGLE_DRIVE_CLIENTS_ID,
                 client_name=client_for_path,
                 period=classification.periodo,
                 document_type=classification.tipo_documento,
@@ -441,7 +441,7 @@ async def _handle_classification_failure(
     try:
         drive_path = await build_drive_path(
             drive_service=_get_drive_service(settings),
-            root_folder_id=settings.GOOGLE_DRIVE_FOLDER_ID,
+            root_folder_id=settings.GOOGLE_DRIVE_CLIENTS_ID,
             client_name="_PENDIENTE",
             period=_current_period(),
             document_type="Otro",

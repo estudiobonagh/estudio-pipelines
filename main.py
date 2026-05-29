@@ -75,14 +75,14 @@ async def lifespan(app: FastAPI):
         )
 
     # Drive INBOX poller (only if configured)
-    if settings.GOOGLE_DRIVE_INBOX_FOLDER_ID:
+    if settings.GOOGLE_DRIVE_INBOX_ID:
         task = asyncio.create_task(
             _drive_inbox_poll_loop(settings, session_factory)
         )
         background_tasks.append(task)
         logger.info(
             "Drive INBOX poller started for folder %s",
-            settings.GOOGLE_DRIVE_INBOX_FOLDER_ID,
+            settings.GOOGLE_DRIVE_INBOX_ID,
         )
 
     yield

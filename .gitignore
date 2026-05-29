@@ -225,3 +225,10 @@ __marimo__/
 *.db
 data/
 venv/
+
+# Credentials — nunca commitear
+credentials.json
+service-account-key.json
+*-credentials.json
+*-key.json
+.env

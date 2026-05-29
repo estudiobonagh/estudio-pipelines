@@ -43,9 +43,9 @@ class DriveInboxWatcher:
         Returns a list of InboxFile objects ready for the processor.
         Files that have already been processed in this session are skipped.
         """
-        inbox_id = self.settings.GOOGLE_DRIVE_INBOX_FOLDER_ID
+        inbox_id = self.settings.GOOGLE_DRIVE_INBOX_ID
         if not inbox_id:
-            logger.warning("GOOGLE_DRIVE_INBOX_FOLDER_ID not set — skipping Drive INBOX poll")
+            logger.warning("GOOGLE_DRIVE_INBOX_ID not set — skipping Drive INBOX poll")
             return []
 
         results: list[InboxFile] = []
@@ -134,7 +134,7 @@ class DriveInboxWatcher:
 
     async def _move_to_processed(self, file_id: str, filename: str) -> None:
         """Move a processed file to the 'Procesados' subfolder."""
-        inbox_id = self.settings.GOOGLE_DRIVE_INBOX_FOLDER_ID
+        inbox_id = self.settings.GOOGLE_DRIVE_INBOX_ID
         processed_id = await get_or_create_folder(
             self.drive_service, inbox_id, "Procesados"
         )
