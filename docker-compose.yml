@@ -1,0 +1,24 @@
+services:
+  pipeline:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env
+    volumes:
+      # Mount service account key as read-only
+      - ${GOOGLE_DRIVE_CREDENTIALS}:/app/credentials.json:ro
+      # Mount SQLite DB to persist across restarts
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3

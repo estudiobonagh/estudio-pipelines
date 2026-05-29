@@ -1,0 +1,22 @@
+# OpenSpec config — estudio-pipelines
+# Demo phase: document reception pipeline for Facundo Bona's accounting firm
+
+project:
+  name: estudio-pipelines
+  language: python
+  type: webhook-service
+
+testing:
+  command: pytest
+  strict_tdd: false # Demo phase — enable for production
+
+review:
+  max_changed_lines: 400
+
+stack:
+  runtime: python 3.12+
+  framework: fastapi
+  ai: grok (xAI, OpenAI-compatible API)
+  storage: google-drive
+  messaging: twilio-sandbox
+  database: sqlite
