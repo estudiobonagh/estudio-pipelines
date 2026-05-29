@@ -232,3 +232,4 @@ service-account-key.json
 *-credentials.json
 *-key.json
 .env
+credentials.json:Zone.Identifier
