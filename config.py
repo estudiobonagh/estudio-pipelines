@@ -31,6 +31,9 @@ class Settings:
         # Google Drive
         self.GOOGLE_DRIVE_CREDENTIALS: str = self._require("GOOGLE_DRIVE_CREDENTIALS")
         self.GOOGLE_DRIVE_FOLDER_ID: str = self._require("GOOGLE_DRIVE_FOLDER_ID")
+        self.GOOGLE_DRIVE_INBOX_FOLDER_ID: str = os.getenv(
+            "GOOGLE_DRIVE_INBOX_FOLDER_ID", ""
+        )
 
         # Database
         self.DATABASE_PATH: str = os.getenv("DATABASE_PATH", "./data/processing.db")
@@ -44,6 +47,13 @@ class Settings:
         self.CLASSIFICATION_TIMEOUT_S: int = int(
             os.getenv("CLASSIFICATION_TIMEOUT_S", "15")
         )
+
+        # Email (IMAP) — optional, for email channel
+        self.EMAIL_IMAP_HOST: str = os.getenv("EMAIL_IMAP_HOST", "")
+        self.EMAIL_IMAP_PORT: int = int(os.getenv("EMAIL_IMAP_PORT", "993"))
+        self.EMAIL_IMAP_USERNAME: str = os.getenv("EMAIL_IMAP_USERNAME", "")
+        self.EMAIL_IMAP_PASSWORD: str = os.getenv("EMAIL_IMAP_PASSWORD", "")
+        self.EMAIL_POLL_INTERVAL_S: int = int(os.getenv("EMAIL_POLL_INTERVAL_S", "60"))
 
         # Validate credentials file exists
         self._validate_credentials_file()

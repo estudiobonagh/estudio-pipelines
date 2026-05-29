@@ -89,15 +89,20 @@ async def process_document(
     filename: str,
     settings: Settings,
     session_factory: async_sessionmaker[AsyncSession],
+    preloaded_bytes: bytes | None = None,
+    skip_confirmation: bool = False,
 ) -> None:
     """Full document processing pipeline.
 
     Steps: validate → download → classify → store → confirm.
     Updates DB status at each step. Never raises — all errors are caught.
     Creates its own DB session so the caller can return immediately.
+
+    If preloaded_bytes is provided (email, Drive INBOX), the download
+    step is skipped.
     """
     log_id = 0  # sentinel — set after Step 1
-    file_bytes: bytes | None = None
+    file_bytes: bytes | None = preloaded_bytes
     classification = None
 
     db_session = session_factory()
@@ -140,48 +145,51 @@ async def process_document(
             )
             return
 
-        # --- Step 3: Download ---
-        max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
-        try:
-            file_bytes, actual_content_type = await download_twilio_media(
-                media_url,
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN,
-                max_size_bytes=max_bytes,
-            )
-        except MediaTooLargeError:
-            await update_log(
-                db_session,
-                log_id,
-                ProcessingStatus.DOWNLOAD_FAILED.value,
-                error_message="File too large",
-            )
-            await send_whatsapp_message(
-                sender_phone,
-                MSG_FILE_TOO_LARGE,
-                settings.TWILIO_WHATSAPP_NUMBER,
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN,
-            )
-            return
-        except MediaDownloadError as exc:
-            await update_log(
-                db_session,
-                log_id,
-                ProcessingStatus.DOWNLOAD_FAILED.value,
-                error_message=str(exc),
-            )
-            await send_whatsapp_message(
-                sender_phone,
-                MSG_DOWNLOAD_FAILED,
-                settings.TWILIO_WHATSAPP_NUMBER,
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN,
-            )
-            return
+        # --- Step 3: Download (skip if preloaded) ---
+        if file_bytes is not None:
+            # Bytes provided directly (email, Drive INBOX)
+            effective_content_type = content_type
+        else:
+            max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+            try:
+                file_bytes, actual_content_type = await download_twilio_media(
+                    media_url,
+                    settings.TWILIO_ACCOUNT_SID,
+                    settings.TWILIO_AUTH_TOKEN,
+                    max_size_bytes=max_bytes,
+                )
+            except MediaTooLargeError:
+                await update_log(
+                    db_session,
+                    log_id,
+                    ProcessingStatus.DOWNLOAD_FAILED.value,
+                    error_message="File too large",
+                )
+                await send_whatsapp_message(
+                    sender_phone,
+                    MSG_FILE_TOO_LARGE,
+                    settings.TWILIO_WHATSAPP_NUMBER,
+                    settings.TWILIO_ACCOUNT_SID,
+                    settings.TWILIO_AUTH_TOKEN,
+                )
+                return
+            except MediaDownloadError as exc:
+                await update_log(
+                    db_session,
+                    log_id,
+                    ProcessingStatus.DOWNLOAD_FAILED.value,
+                    error_message=str(exc),
+                )
+                await send_whatsapp_message(
+                    sender_phone,
+                    MSG_DOWNLOAD_FAILED,
+                    settings.TWILIO_WHATSAPP_NUMBER,
+                    settings.TWILIO_ACCOUNT_SID,
+                    settings.TWILIO_AUTH_TOKEN,
+                )
+                return
 
-        # Use actual content type from download response if available
-        effective_content_type = actual_content_type or content_type
+            effective_content_type = actual_content_type or content_type
 
         # At this point download succeeded — file_bytes is guaranteed to be set
         assert file_bytes is not None
@@ -352,34 +360,41 @@ async def process_document(
             drive_folder_path=f"Clientes/{client_for_path}/{classification.periodo}/{classification.tipo_documento}",
         )
 
-        # --- Step 11: Send confirmation ---
-        if classification.cliente:
-            confirm_msg = MSG_SUCCESS_TEMPLATE.format(
-                cliente=classification.cliente,
-                tipo=classification.tipo_documento or "documento",
-                periodo=classification.periodo or "actual",
+        # --- Step 11: Send confirmation (WhatsApp only) ---
+        if not skip_confirmation:
+            if classification.cliente:
+                confirm_msg = MSG_SUCCESS_TEMPLATE.format(
+                    cliente=classification.cliente,
+                    tipo=classification.tipo_documento or "documento",
+                    periodo=classification.periodo or "actual",
+                )
+            else:
+                confirm_msg = MSG_SUCCESS_NO_CLIENT
+
+            sent = await send_whatsapp_message(
+                sender_phone,
+                confirm_msg,
+                settings.TWILIO_WHATSAPP_NUMBER,
+                settings.TWILIO_ACCOUNT_SID,
+                settings.TWILIO_AUTH_TOKEN,
             )
+
+            if sent:
+                await update_log(
+                    db_session,
+                    log_id,
+                    ProcessingStatus.CONFIRMATION_SENT.value,
+                )
+            else:
+                logger.warning(
+                    "Confirmation send failed for log_id=%d, file already stored",
+                    log_id,
+                )
         else:
-            confirm_msg = MSG_SUCCESS_NO_CLIENT
-
-        sent = await send_whatsapp_message(
-            sender_phone,
-            confirm_msg,
-            settings.TWILIO_WHATSAPP_NUMBER,
-            settings.TWILIO_ACCOUNT_SID,
-            settings.TWILIO_AUTH_TOKEN,
-        )
-
-        if sent:
             await update_log(
                 db_session,
                 log_id,
                 ProcessingStatus.CONFIRMATION_SENT.value,
-            )
-        else:
-            logger.warning(
-                "Confirmation send failed for log_id=%d, file already stored",
-                log_id,
             )
 
     except Exception:

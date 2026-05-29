@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 from contextlib import asynccontextmanager
 
 import httpx
@@ -57,9 +58,42 @@ async def lifespan(app: FastAPI):
     start_time = time.monotonic()
     logger.info("Pipeline ready. Listening on %s:%d", settings.HOST, settings.PORT)
 
+    # --- Background channel pollers ---
+    background_tasks: list[asyncio.Task[None]] = []
+
+    # Email IMAP poller (only if configured)
+    if settings.EMAIL_IMAP_HOST:
+        task = asyncio.create_task(
+            _email_poll_loop(settings, session_factory)
+        )
+        background_tasks.append(task)
+        logger.info(
+            "Email poller started: %s:%d every %ds",
+            settings.EMAIL_IMAP_HOST,
+            settings.EMAIL_IMAP_PORT,
+            settings.EMAIL_POLL_INTERVAL_S,
+        )
+
+    # Drive INBOX poller (only if configured)
+    if settings.GOOGLE_DRIVE_INBOX_FOLDER_ID:
+        task = asyncio.create_task(
+            _drive_inbox_poll_loop(settings, session_factory)
+        )
+        background_tasks.append(task)
+        logger.info(
+            "Drive INBOX poller started for folder %s",
+            settings.GOOGLE_DRIVE_INBOX_FOLDER_ID,
+        )
+
     yield
 
-    # Shutdown
+    # Shutdown — cancel background pollers
+    for task in background_tasks:
+        task.cancel()
+    if background_tasks:
+        await asyncio.gather(*background_tasks, return_exceptions=True)
+        logger.info("Background pollers stopped")
+
     if db_engine:
         await db_engine.dispose()
         logger.info("Database connection closed")
@@ -210,7 +244,6 @@ async def twilio_webhook(request: Request):
         )
 
     # Generate a filename for the incoming media
-    import uuid
 
     media_type_str = str(media_content_type)
     if "pdf" in media_type_str:
@@ -250,3 +283,85 @@ async def twilio_webhook(request: Request):
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>",
         media_type="application/xml",
     )
+
+
+# --- Background channel pollers ---
+
+
+async def _email_poll_loop(settings, session_factory) -> None:
+    """Background task: poll IMAP inbox for new email attachments."""
+
+    from email_service import EmailPoller
+
+    poller = EmailPoller(
+        host=settings.EMAIL_IMAP_HOST,
+        port=settings.EMAIL_IMAP_PORT,
+        username=settings.EMAIL_IMAP_USERNAME,
+        password=settings.EMAIL_IMAP_PASSWORD,
+    )
+
+    while True:
+        try:
+            attachments = await poller.fetch_new_attachments()
+            for att in attachments:
+                logger.info(
+                    "Email poller: processing %s from %s",
+                    att.filename,
+                    att.sender_email,
+                )
+                asyncio.create_task(
+                    process_document(
+                        sender_phone=att.sender_email,
+                        media_url="",
+                        content_type=att.content_type,
+                        filename=att.filename,
+                        settings=settings,
+                        session_factory=session_factory,
+                        preloaded_bytes=att.file_bytes,
+                        skip_confirmation=True,
+                    )
+                )
+        except asyncio.CancelledError:
+            logger.info("Email poller cancelled")
+            break
+        except Exception:
+            logger.exception("Email poller iteration failed")
+
+        await asyncio.sleep(settings.EMAIL_POLL_INTERVAL_S)
+
+
+async def _drive_inbox_poll_loop(settings, session_factory) -> None:
+    """Background task: poll Drive INBOX folder for new files."""
+
+    from drive_watcher import DriveInboxWatcher
+
+    watcher = DriveInboxWatcher(settings)
+
+    while True:
+        try:
+            files = await watcher.poll()
+            for f in files:
+                logger.info(
+                    "Drive INBOX: processing %s (%d bytes)",
+                    f.filename,
+                    len(f.file_bytes),
+                )
+                asyncio.create_task(
+                    process_document(
+                        sender_phone="drive-inbox",
+                        media_url="",
+                        content_type=f.content_type,
+                        filename=f.filename,
+                        settings=settings,
+                        session_factory=session_factory,
+                        preloaded_bytes=f.file_bytes,
+                        skip_confirmation=True,
+                    )
+                )
+        except asyncio.CancelledError:
+            logger.info("Drive INBOX poller cancelled")
+            break
+        except Exception:
+            logger.exception("Drive INBOX poller iteration failed")
+
+        await asyncio.sleep(60)  # poll every 60 seconds
