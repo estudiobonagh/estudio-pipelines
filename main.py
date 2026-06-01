@@ -187,6 +187,10 @@ async def twilio_webhook(request: Request):
 
     try:
         form_data = await request.form()
+        # Log ALL incoming form data for debugging
+        logger.info("🔍 Incoming webhook form_data keys: %s", list(form_data.keys()))
+        for key, value in form_data.items():
+            logger.info("  → %s = %s", key, value)
     except Exception:
         logger.warning("Malformed webhook payload from %s", request.client)
         return JSONResponse(
@@ -199,6 +203,9 @@ async def twilio_webhook(request: Request):
     media_url = form_data.get("MediaUrl0", "")
     media_content_type = form_data.get("MediaContentType0", "")
     num_media = int(str(form_data.get("NumMedia", "0")))
+
+    logger.info("📊 Parsed: NumMedia=%d, MediaUrl0=%s, MediaContentType0=%s",
+                num_media, media_url, media_content_type)
 
     # Normalize phone number
     sender_phone = normalize_phone(str(from_number))
