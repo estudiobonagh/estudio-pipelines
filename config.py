@@ -55,13 +55,6 @@ class Settings:
             os.getenv("CLASSIFICATION_TIMEOUT_S", "15")
         )
 
-        # Email (IMAP) — optional, for email channel
-        self.EMAIL_IMAP_HOST: str = os.getenv("EMAIL_IMAP_HOST", "")
-        self.EMAIL_IMAP_PORT: int = int(os.getenv("EMAIL_IMAP_PORT", "993"))
-        self.EMAIL_IMAP_USERNAME: str = os.getenv("EMAIL_IMAP_USERNAME", "")
-        self.EMAIL_IMAP_PASSWORD: str = os.getenv("EMAIL_IMAP_PASSWORD", "")
-        self.EMAIL_POLL_INTERVAL_S: int = int(os.getenv("EMAIL_POLL_INTERVAL_S", "60"))
-
         # Validate credentials file exists
         self._validate_credentials_file()
 

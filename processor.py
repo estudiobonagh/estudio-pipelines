@@ -98,7 +98,7 @@ async def process_document(
     Updates DB status at each step. Never raises — all errors are caught.
     Creates its own DB session so the caller can return immediately.
 
-    If preloaded_bytes is provided (email, Drive INBOX), the download
+    If preloaded_bytes is provided (Drive INBOX), the download
     step is skipped.
     """
     log_id = 0  # sentinel — set after Step 1
@@ -147,7 +147,7 @@ async def process_document(
 
         # --- Step 3: Download (skip if preloaded) ---
         if file_bytes is not None:
-            # Bytes provided directly (email, Drive INBOX)
+            # Bytes provided directly (Drive INBOX)
             effective_content_type = content_type
         else:
             max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024

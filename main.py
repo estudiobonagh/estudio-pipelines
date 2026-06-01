@@ -61,19 +61,6 @@ async def lifespan(app: FastAPI):
     # --- Background channel pollers ---
     background_tasks: list[asyncio.Task[None]] = []
 
-    # Email IMAP poller (only if configured)
-    if settings.EMAIL_IMAP_HOST:
-        task = asyncio.create_task(
-            _email_poll_loop(settings, session_factory)
-        )
-        background_tasks.append(task)
-        logger.info(
-            "Email poller started: %s:%d every %ds",
-            settings.EMAIL_IMAP_HOST,
-            settings.EMAIL_IMAP_PORT,
-            settings.EMAIL_POLL_INTERVAL_S,
-        )
-
     # Drive INBOX poller (only if configured)
     if settings.GOOGLE_DRIVE_INBOX_ID:
         task = asyncio.create_task(
@@ -286,56 +273,6 @@ async def twilio_webhook(request: Request):
 
 
 # --- Background channel pollers ---
-
-
-async def _email_poll_loop(settings, session_factory) -> None:
-    """Background task: poll IMAP inbox for new email attachments."""
-
-    from email_service import EmailPoller, IMAPLoginError
-
-    poller = EmailPoller(
-        host=settings.EMAIL_IMAP_HOST,
-        port=settings.EMAIL_IMAP_PORT,
-        username=settings.EMAIL_IMAP_USERNAME,
-        password=settings.EMAIL_IMAP_PASSWORD,
-    )
-
-    while True:
-        try:
-            attachments = await poller.fetch_new_attachments()
-            for att in attachments:
-                logger.info(
-                    "Email poller: processing %s from %s",
-                    att.filename,
-                    att.sender_email,
-                )
-                asyncio.create_task(
-                    process_document(
-                        sender_phone=att.sender_email,
-                        media_url="",
-                        content_type=att.content_type,
-                        filename=att.filename,
-                        settings=settings,
-                        session_factory=session_factory,
-                        preloaded_bytes=att.file_bytes,
-                        skip_confirmation=True,
-                    )
-                )
-        except asyncio.CancelledError:
-            logger.info("Email poller cancelled")
-            break
-        except IMAPLoginError:
-            logger.error(
-                "Email poller: login failed — check EMAIL_IMAP_USERNAME/PASSWORD. "
-                "Retrying in %ds",
-                settings.EMAIL_POLL_INTERVAL_S * 10,
-            )
-            await asyncio.sleep(settings.EMAIL_POLL_INTERVAL_S * 10)
-            continue
-        except Exception:
-            logger.exception("Email poller iteration failed")
-
-        await asyncio.sleep(settings.EMAIL_POLL_INTERVAL_S)
 
 
 async def _drive_inbox_poll_loop(settings, session_factory) -> None:
