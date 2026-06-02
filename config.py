@@ -26,7 +26,7 @@ class Settings:
         # Grok (xAI)
         self.XAI_API_KEY: str = self._require("XAI_API_KEY")
         self.XAI_BASE_URL: str = os.getenv("XAI_BASE_URL", "https://api.x.ai/v1")
-        self.XAI_MODEL: str = os.getenv("XAI_MODEL", "grok-2-vision-1212")
+        self.XAI_MODEL: str = os.getenv("XAI_MODEL", "grok-4.3")
 
         # Google Drive
         creds_json = os.getenv("GOOGLE_DRIVE_CREDENTIALS_JSON", "")

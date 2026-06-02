@@ -62,7 +62,7 @@ def build_credentials(source: str | dict) -> Credentials:
     Accepts either a file path to a service account JSON, or the parsed
     JSON dict directly (for Railway/cloud where files aren't practical).
     """
-    scopes = ["https://www.googleapis.com/auth/drive.file"]
+    scopes = ["https://www.googleapis.com/auth/drive"]
     if isinstance(source, dict):
         return service_account.Credentials.from_service_account_info(
             source, scopes=scopes
@@ -100,7 +100,8 @@ async def get_or_create_folder(
     try:
         results = (
             drive_service.files()
-            .list(q=query, fields="files(id, name)", pageSize=1)
+            .list(q=query, fields="files(id, name)", pageSize=1,
+                  supportsAllDrives=True, includeItemsFromAllDrives=True)
             .execute()
         )
     except HttpError as exc:
@@ -120,7 +121,7 @@ async def get_or_create_folder(
     try:
         folder = (
             drive_service.files()
-            .create(body=folder_metadata, fields="id")
+            .create(body=folder_metadata, fields="id", supportsAllDrives=True)
             .execute()
         )
     except HttpError as exc:
@@ -261,7 +262,7 @@ async def upload_to_drive(
     try:
         uploaded = (
             drive_service.files()
-            .create(body=file_metadata, media_body=media, fields="id")
+            .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
             .execute()
         )
     except HttpError as exc:

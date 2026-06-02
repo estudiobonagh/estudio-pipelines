@@ -174,13 +174,17 @@ async def classify_document(
         )
 
     elif content_type == PDF_MIME_TYPE:
-        # Treat PDF as image (Grok vision handles it)
+        # xAI only supports jpg/png for image input (as of June 2026).
+        # For PDFs, try to extract text content and send as text.
+        try:
+            pdf_text = file_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pdf_text = f"[No se pudo leer el PDF: {filename}]"
+
         content_parts.append(
-            ChatCompletionContentPartImageParam(
-                type="image_url",
-                image_url={
-                    "url": _encode_image(file_bytes, "application/pdf")
-                },
+            ChatCompletionContentPartTextParam(
+                type="text",
+                text=f"Documento PDF ({filename}):\n\n{pdf_text[:4000]}",
             )
         )
 
