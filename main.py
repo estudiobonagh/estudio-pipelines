@@ -278,18 +278,31 @@ async def twilio_webhook(request: Request):
     )
 
     # Respond to Twilio immediately (within 3 seconds)
-    # Then spawn background task for the pipeline
-    # Pass session_factory so the task creates its own session
-    asyncio.create_task(
-        process_document(
-            sender_phone=sender_phone,
-            media_url=str(media_url),
-            content_type=media_type_str,
-            filename=filename,
-            settings=settings,
-            session_factory=session_factory,
+    # Then spawn background task for the pipeline.
+    # Wrap in try/except so we can notify the user if processing fails
+    # (e.g. Twilio deletes media after ~1 hour — "file no longer available").
+    try:
+        asyncio.create_task(
+            process_document(
+                sender_phone=sender_phone,
+                media_url=str(media_url),
+                content_type=media_type_str,
+                filename=filename,
+                settings=settings,
+                session_factory=session_factory,
+                preloaded_bytes=None,
+                skip_confirmation=False,
+            )
         )
-    )
+    except Exception as e:
+        logger.error("Failed to spawn process_document: %s", e)
+        await send_whatsapp_message(
+            sender_phone,
+            "⚠️ Error al procesar el documento. Por favor intentá de nuevo.",
+            settings.TWILIO_WHATSAPP_NUMBER,
+            settings.TWILIO_ACCOUNT_SID,
+            settings.TWILIO_AUTH_TOKEN,
+        )
 
     # Twilio expects XML or 200 OK. Empty <Response> means don't reply via TwiML.
     return PlainTextResponse(
