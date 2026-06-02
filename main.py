@@ -207,11 +207,30 @@ async def twilio_webhook(request: Request):
     logger.info("📊 Parsed: NumMedia=%d, MediaUrl0=%s, MediaContentType0=%s",
                 num_media, media_url, media_content_type)
 
+    # Distinguish incoming messages from status callbacks.
+    # Status callbacks have MessageStatus but no Body and NumMedia=0.
+    # We must NOT send USAGE_MSG to status callbacks (would reply to the
+    # sandbox number itself → "same To and From" error from Twilio).
+    message_status = form_data.get("MessageStatus", "")
+    is_status_callback = bool(message_status)
+
     # Normalize phone number
     sender_phone = normalize_phone(str(from_number))
 
-    # No media attached — text-only message
+    # No media attached — text-only message (or status callback)
     if num_media == 0 or not media_url:
+        if is_status_callback:
+            # Status callback: log and silently ignore — do not reply
+            logger.info(
+                "Status callback for SID %s (%s), ignoring",
+                form_data.get("MessageSid", "unknown"),
+                message_status,
+            )
+            return PlainTextResponse(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>",
+                media_type="application/xml",
+            )
+
         logger.info("Text-only message from %s, ignoring", sender_phone)
         # Insert a log record for the ignored message
         async with session_factory() as session:
