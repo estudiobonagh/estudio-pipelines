@@ -62,7 +62,7 @@ async def download_twilio_media(
     auth = httpx.BasicAuth(username=account_sid, password=auth_token)
 
     try:
-        async with httpx.AsyncClient(auth=auth, timeout=10.0) as client:
+        async with httpx.AsyncClient(auth=auth, timeout=10.0, follow_redirects=True) as client:
             # Check file size via HEAD request first
             head_response = await client.head(media_url)
             content_length = head_response.headers.get("Content-Length")
