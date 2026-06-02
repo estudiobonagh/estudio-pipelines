@@ -174,6 +174,7 @@ async def process_document(
                 )
                 return
             except MediaDownloadError as exc:
+                logger.warning("Media download failed from Twilio for %s: %s", media_url, exc)
                 await update_log(
                     db_session,
                     log_id,
