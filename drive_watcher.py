@@ -144,9 +144,15 @@ class DriveInboxWatcher:
         new_name = f"{ts}_{filename}"
 
         try:
-            # In Shared Drives, files can only have one parent.
-            # addParents automatically replaces the existing parent (no
-            # need for removeParents — would cause "cannotAddParent" error).
+            # In Shared Drives, files can only have one parent.  We must
+            # remove the old parent FIRST (file becomes temporarily
+            # orphaned), then add the new parent in a separate call.
+            # Doing both in one request would create 2 parents → rejected.
+            self.drive_service.files().update(
+                fileId=file_id,
+                removeParents=inbox_id,
+                supportsAllDrives=True,
+            ).execute()
             self.drive_service.files().update(
                 fileId=file_id,
                 addParents=processed_id,
