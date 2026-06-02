@@ -111,13 +111,14 @@ async def process_document(
         is_dup = await check_duplicate(db_session, sender_phone, filename)
         if is_dup:
             logger.info("Duplicate detected: %s from %s", filename, sender_phone)
-            await send_whatsapp_message(
-                sender_phone,
-                MSG_DUPLICATE,
-                settings.TWILIO_WHATSAPP_NUMBER,
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN,
-            )
+            if not skip_confirmation:
+                await send_whatsapp_message(
+                    sender_phone,
+                    MSG_DUPLICATE,
+                    settings.TWILIO_WHATSAPP_NUMBER,
+                    settings.TWILIO_ACCOUNT_SID,
+                    settings.TWILIO_AUTH_TOKEN,
+                )
             return
 
         # --- Step 1: Create log ---
@@ -136,13 +137,14 @@ async def process_document(
                 log_id,
                 ProcessingStatus.IGNORED_UNSUPPORTED_TYPE.value,
             )
-            await send_whatsapp_message(
-                sender_phone,
-                MSG_UNSUPPORTED_TYPE,
-                settings.TWILIO_WHATSAPP_NUMBER,
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN,
-            )
+            if not skip_confirmation:
+                await send_whatsapp_message(
+                    sender_phone,
+                    MSG_UNSUPPORTED_TYPE,
+                    settings.TWILIO_WHATSAPP_NUMBER,
+                    settings.TWILIO_ACCOUNT_SID,
+                    settings.TWILIO_AUTH_TOKEN,
+                )
             return
 
         # --- Step 3: Download (skip if preloaded) ---
@@ -165,13 +167,14 @@ async def process_document(
                     ProcessingStatus.DOWNLOAD_FAILED.value,
                     error_message="File too large",
                 )
-                await send_whatsapp_message(
-                    sender_phone,
-                    MSG_FILE_TOO_LARGE,
-                    settings.TWILIO_WHATSAPP_NUMBER,
-                    settings.TWILIO_ACCOUNT_SID,
-                    settings.TWILIO_AUTH_TOKEN,
-                )
+                if not skip_confirmation:
+                    await send_whatsapp_message(
+                        sender_phone,
+                        MSG_FILE_TOO_LARGE,
+                        settings.TWILIO_WHATSAPP_NUMBER,
+                        settings.TWILIO_ACCOUNT_SID,
+                        settings.TWILIO_AUTH_TOKEN,
+                    )
                 return
             except MediaDownloadError as exc:
                 logger.warning("Media download failed from Twilio for %s: %s", media_url, exc)
@@ -181,13 +184,14 @@ async def process_document(
                     ProcessingStatus.DOWNLOAD_FAILED.value,
                     error_message=str(exc),
                 )
-                await send_whatsapp_message(
-                    sender_phone,
-                    MSG_DOWNLOAD_FAILED,
-                    settings.TWILIO_WHATSAPP_NUMBER,
-                    settings.TWILIO_ACCOUNT_SID,
-                    settings.TWILIO_AUTH_TOKEN,
-                )
+                if not skip_confirmation:
+                    await send_whatsapp_message(
+                        sender_phone,
+                        MSG_DOWNLOAD_FAILED,
+                        settings.TWILIO_WHATSAPP_NUMBER,
+                        settings.TWILIO_ACCOUNT_SID,
+                        settings.TWILIO_AUTH_TOKEN,
+                    )
                 return
 
             effective_content_type = actual_content_type or content_type
@@ -214,28 +218,28 @@ async def process_document(
             await _handle_classification_failure(
                 db_session, log_id, settings, sender_phone,
                 file_bytes, filename, effective_content_type, str(exc),
-                MSG_CLASSIFY_TIMEOUT,
+                MSG_CLASSIFY_TIMEOUT, skip_confirmation,
             )
             return
         except ClassificationAuthError as exc:
             await _handle_classification_failure(
                 db_session, log_id, settings, sender_phone,
                 file_bytes, filename, effective_content_type, str(exc),
-                MSG_CLASSIFY_FAILED,
+                MSG_CLASSIFY_FAILED, skip_confirmation,
             )
             return
         except ClassificationParseError as exc:
             await _handle_classification_failure(
                 db_session, log_id, settings, sender_phone,
                 file_bytes, filename, effective_content_type, str(exc),
-                MSG_CLASSIFY_FAILED,
+                MSG_CLASSIFY_FAILED, skip_confirmation,
             )
             return
         except ClassificationError as exc:
             await _handle_classification_failure(
                 db_session, log_id, settings, sender_phone,
                 file_bytes, filename, effective_content_type, str(exc),
-                MSG_CLASSIFY_FAILED,
+                MSG_CLASSIFY_FAILED, skip_confirmation,
             )
             return
 
@@ -272,13 +276,14 @@ async def process_document(
             except DriveError:
                 logger.exception("Failed to save low-confidence doc to _REVISION")
 
-            await send_whatsapp_message(
-                sender_phone,
-                MSG_LOW_CONFIDENCE,
-                settings.TWILIO_WHATSAPP_NUMBER,
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN,
-            )
+            if not skip_confirmation:
+                await send_whatsapp_message(
+                    sender_phone,
+                    MSG_LOW_CONFIDENCE,
+                    settings.TWILIO_WHATSAPP_NUMBER,
+                    settings.TWILIO_ACCOUNT_SID,
+                    settings.TWILIO_AUTH_TOKEN,
+                )
             return
 
         # --- Step 6: Update as classified ---
@@ -318,13 +323,14 @@ async def process_document(
                 ProcessingStatus.DRIVE_ERROR.value,
                 error_message=str(exc),
             )
-            await send_whatsapp_message(
-                sender_phone,
-                MSG_DRIVE_ERROR,
-                settings.TWILIO_WHATSAPP_NUMBER,
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN,
-            )
+            if not skip_confirmation:
+                await send_whatsapp_message(
+                    sender_phone,
+                    MSG_DRIVE_ERROR,
+                    settings.TWILIO_WHATSAPP_NUMBER,
+                    settings.TWILIO_ACCOUNT_SID,
+                    settings.TWILIO_AUTH_TOKEN,
+                )
             return
 
         # --- Step 9: Upload to Drive ---
@@ -343,13 +349,14 @@ async def process_document(
                 ProcessingStatus.DRIVE_ERROR.value,
                 error_message=str(exc),
             )
-            await send_whatsapp_message(
-                sender_phone,
-                MSG_DRIVE_ERROR,
-                settings.TWILIO_WHATSAPP_NUMBER,
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN,
-            )
+            if not skip_confirmation:
+                await send_whatsapp_message(
+                    sender_phone,
+                    MSG_DRIVE_ERROR,
+                    settings.TWILIO_WHATSAPP_NUMBER,
+                    settings.TWILIO_ACCOUNT_SID,
+                    settings.TWILIO_AUTH_TOKEN,
+                )
             return
 
         # --- Step 10: Update as stored ---
@@ -429,6 +436,7 @@ async def _handle_classification_failure(
     content_type: str,
     error_detail: str,
     user_message: str,
+    skip_confirmation: bool = False,
 ) -> None:
     """Handle classification failure: update DB, save to _PENDIENTE, reply."""
     await update_log(
@@ -457,13 +465,14 @@ async def _handle_classification_failure(
     except DriveError:
         logger.exception("Failed to save failed-classification doc to _PENDIENTE")
 
-    await send_whatsapp_message(
-        sender_phone,
-        user_message,
-        settings.TWILIO_WHATSAPP_NUMBER,
-        settings.TWILIO_ACCOUNT_SID,
-        settings.TWILIO_AUTH_TOKEN,
-    )
+    if not skip_confirmation:
+        await send_whatsapp_message(
+            sender_phone,
+            user_message,
+            settings.TWILIO_WHATSAPP_NUMBER,
+            settings.TWILIO_ACCOUNT_SID,
+            settings.TWILIO_AUTH_TOKEN,
+        )
 
 
 def _current_period() -> str:
